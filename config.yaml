@@ -23,7 +23,7 @@ queues:
 phone_detection:
   model_path: "models/phone_detector_best.pt"
   confidence_threshold: 0.55     # Min confidence to consider a detection
-  inference_image_size: 640
+  inference_image_size: 320     # Reduced from 640 for faster CPU inference
   base_score: 35                 # Chapter 3 Table 3.5 — unambiguous violation
 
   # Confidence weighting (Chapter 3 Table 3.7)

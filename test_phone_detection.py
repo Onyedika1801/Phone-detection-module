@@ -85,7 +85,7 @@ def run_isolation_test(source, config_path="config.yaml"):
 
     # Send every 3rd frame to detector — keeps display smooth
     # while giving detector enough time per frame on CPU
-    FRAME_SKIP = 3
+    FRAME_SKIP = 10  # Increased from 3 — CPU-only inference needs fewer frames/sec
 
     try:
         while True:
