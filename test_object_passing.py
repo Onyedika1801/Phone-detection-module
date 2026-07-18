@@ -132,6 +132,8 @@ def run_isolation_test(source, config_path: str = "config.yaml"):
             f"Events emitted: {stats['events_emitted']}",
             f"Suppressed (grace): {stats['suppressed_grace_window']}",
             f"Suppressed (burst): {stats['suppressed_burst']}",
+            f"Suppressed (zone sep): {stats['suppressed_zone_separation']}",
+            f"Zone separation OK: {stats['zone_separation_reliable']}",
             f"In grace window: {stats['in_grace_window']}",
         ]
         for i, line in enumerate(overlay):

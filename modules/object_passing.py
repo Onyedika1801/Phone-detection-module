@@ -174,6 +174,35 @@ class ObjectPassingModule:
 
         self._module_start_time = time.time()
 
+        # --- Minimum zone separation guard ---
+        # NOTE: this module's zones are FIXED GRID CELLS (CandidateZoneTracker),
+        # not per-candidate bounding boxes derived from live pose detection.
+        # Grid cells can never geometrically "overlap" the way pose-derived
+        # zones could, so the specific overlap check doesn't apply as-is.
+        # The underlying risk is the same though: if cells are small
+        # relative to real candidate seat spacing, hand-crossing detection
+        # becomes unreliable/spurious near boundaries — a candidate's own
+        # natural hand movement within a too-small cell can look like a
+        # "crossing." min_zone_separation (config.yaml) is applied here as
+        # a minimum cell width, expressed as a fraction of frame width. If
+        # violated, we don't guess — we log a clear warning and disable
+        # scored crossing events entirely until the grid is reconfigured,
+        # rather than silently generating unreliable alerts.
+        self._min_zone_separation = cfg['min_zone_separation']
+        cell_fraction_of_width = self._zone_tracker.cell_w / frame_width
+        self._zone_separation_reliable = cell_fraction_of_width >= self._min_zone_separation
+        if not self._zone_separation_reliable:
+            logger.warning(
+                f"[ObjectPassing] Grid cell width ({self._zone_tracker.cell_w:.0f}px, "
+                f"{cell_fraction_of_width:.2%} of frame) is below "
+                f"min_zone_separation ({self._min_zone_separation:.2%}). "
+                f"Candidate zones are too close together for reliable "
+                f"crossing detection at this grid resolution — scored "
+                f"object_passing events are DISABLED until grid_cols/"
+                f"grid_rows are reduced or the camera's field of view is "
+                f"widened to space candidates further apart per cell."
+            )
+
         # NOTE: reusing phone-detection weights as a placeholder object
         # detector — see module docstring "Documented Limitations".
         self._model = YOLO(cfg['model_path'])
@@ -197,6 +226,7 @@ class ObjectPassingModule:
         self._total_events_emitted = 0
         self._total_events_suppressed_burst = 0
         self._total_events_suppressed_grace = 0
+        self._total_events_suppressed_zone_separation = 0
 
     # --------------------------------------------------------
     def _in_grace_window(self, now: float) -> bool:
@@ -289,7 +319,17 @@ class ObjectPassingModule:
     # --------------------------------------------------------
     def _build_event(self, crossing: CrossingEvent, frame_number: int,
                       now: float) -> Optional[DetectionEvent]:
-        """Apply grace-window + burst suppression, then build the event."""
+        """Apply zone-separation, grace-window, and burst suppression,
+        then build the event."""
+        if not self._zone_separation_reliable:
+            self._total_events_suppressed_zone_separation += 1
+            logger.debug(
+                f"[ObjectPassing] Crossing {crossing.from_zone}->"
+                f"{crossing.to_zone} suppressed (zone separation below "
+                f"min_zone_separation — see startup warning)"
+            )
+            return None
+
         if self._in_grace_window(now):
             self._total_events_suppressed_grace += 1
             logger.debug(
@@ -378,6 +418,8 @@ class ObjectPassingModule:
             'events_emitted': self._total_events_emitted,
             'suppressed_grace_window': self._total_events_suppressed_grace,
             'suppressed_burst': self._total_events_suppressed_burst,
+            'suppressed_zone_separation': self._total_events_suppressed_zone_separation,
+            'zone_separation_reliable': self._zone_separation_reliable,
             'in_grace_window': self._in_grace_window(time.time()),
         }
 
