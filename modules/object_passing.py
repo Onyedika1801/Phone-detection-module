@@ -162,6 +162,7 @@ class ObjectPassingModule:
         self._frame_height = frame_height
 
         self._object_conf = cfg['object_confidence_threshold']
+        self._frame_skip = cfg['frame_skip']
         self._base_score = cfg['base_score']
         self._boundary_margin = cfg['boundary_margin_pixels']
         self._object_proximity = cfg['object_proximity_pixels']
@@ -227,6 +228,7 @@ class ObjectPassingModule:
         self._total_events_suppressed_burst = 0
         self._total_events_suppressed_grace = 0
         self._total_events_suppressed_zone_separation = 0
+        self._frames_skipped = 0
 
     # --------------------------------------------------------
     def _in_grace_window(self, now: float) -> bool:
@@ -280,6 +282,16 @@ class ObjectPassingModule:
         """
         self._frame_count += 1
         now = time.time()
+
+        # Frame skip — this module runs BOTH YOLO and MediaPipe Hands per
+        # processed frame, making it the heaviest of the four modules on
+        # CPU. Skip early, before either model runs, rather than after —
+        # running one model and discarding the result wastes the exact
+        # cost we're trying to avoid.
+        if self._frame_count % self._frame_skip != 0:
+            self._frames_skipped += 1
+            return []
+
         events: List[DetectionEvent] = []
 
         object_boxes = self._detect_objects(frame)
@@ -414,6 +426,7 @@ class ObjectPassingModule:
     def get_stats(self) -> dict:
         return {
             'frames_processed': self._frame_count,
+            'frames_skipped': self._frames_skipped,
             'total_crossings_detected': self._total_crossings_detected,
             'events_emitted': self._total_events_emitted,
             'suppressed_grace_window': self._total_events_suppressed_grace,

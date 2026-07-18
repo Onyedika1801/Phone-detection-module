@@ -77,6 +77,12 @@ object_passing:
                                                    # paper/pen dataset is
                                                    # trained (see limitations)
   object_confidence_threshold: 0.35
+  frame_skip: 6                   # Process 1 in every N frames — this
+                                   # module runs BOTH YOLO and MediaPipe
+                                   # Hands per processed frame, making it
+                                   # the heaviest of the four on CPU.
+                                   # Live testing showed ~2.8 FPS and
+                                   # heavy CPU/fan load with no skip.
   zone_padding_pixels: 80         # Pixels beyond body keypoints = personal zone
   transfer_time_window_seconds: 1.5
   min_zone_separation: 0.15       # Min fraction of frame width between zones

@@ -127,7 +127,8 @@ def run_isolation_test(source, config_path: str = "config.yaml"):
         stats = module.get_stats()
         overlay = [
             f"Camera FPS: {camera_fps:.1f}",
-            f"Frames processed: {stats['frames_processed']}",
+            f"Frames processed: {stats['frames_processed']} "
+            f"(skipped: {stats['frames_skipped']})",
             f"Crossings detected: {stats['total_crossings_detected']}",
             f"Events emitted: {stats['events_emitted']}",
             f"Suppressed (grace): {stats['suppressed_grace_window']}",
